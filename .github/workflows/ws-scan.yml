@@ -84,7 +84,7 @@ jobs:
         distribution: 'adopt'
     # WhiteSource Scan
     - name: WhiteSource Unified Agent Download
-    - run: curl -LJO https://unified-agent.s3.amazonaws.com/wss-unified-agent.jar
+      run: curl -LJO https://unified-agent.s3.amazonaws.com/wss-unified-agent.jar
     - name: WhiteSource Unified Agent Scan
       env:
         GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
