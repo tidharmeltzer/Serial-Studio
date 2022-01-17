@@ -14,21 +14,74 @@ on:
     #     # Input has to be provided for the workflow to run
     #     required: true
 
+env:
+  VERSION: "1.1.5"
+  EXECUTABLE: "SerialStudio"
+  APPLICATION: "Serial Studio"
+  UNIXNAME: "serial-studio"
+  QMAKE_PROJECT: "Serial-Studio.pro"
+  QML_DIR_NIX: "assets/qml"
+  QML_DIR_WIN: "assets\\qml"
+  PUBLISHER: "Alex Spataru"
+  REPO_DIR: "/home/runner/work/Serial-Studio/Serial-Studio"
+  QT_VERSION: 5.15.2
+  QMAKE: qmake
+  CORES: 12
+
 jobs:
   build:
 
     runs-on: ubuntu-latest
+    name: '🐧 Ubuntu'
 
     steps:
-    - uses: actions/checkout@v2
+
+    - name: '🧰 Checkout'
+      uses: actions/checkout@v2
+      with:
+        submodules: recursive
+
+    - name: '⚙️ Cache Qt'
+      id: cache-qt
+      uses: actions/cache@v1
+      with:
+        path: ../Qt
+        key: ${{runner.os}}-qtcachedir-${{env.QT_VERSION}}
+
+    - name: '⚙️ Install Qt'
+      uses: jurplel/install-qt-action@v2
+      with:
+        version: ${{env.QT_VERSION}}
+        #modules: qtserialport qt5compat
+        aqtversion: '==2.0.0'
+        cached: ${{steps.cache-qt.outputs.cache-hit}}
+
+    # Install additional dependencies, stolen from:
+    # https://github.com/mapeditor/tiled/blob/master/.github/workflows/packages.yml
+    - name: '⚙️ Install dependencies'
+      run: |
+        sudo apt-get update
+        sudo apt-get install libgl1-mesa-dev libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-xinerama0 libzstd-dev
+    - name: '🚧 Compile application'
+      run: |
+          ${{env.QMAKE}} ${{env.QMAKE_PROJECT}} CONFIG+=release PREFIX=/usr
+          make -j${{env.CORES}}
+    - name: '⚙️ Install linuxdeployqt'
+      run: |
+          wget -c -nv "https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage" -O linuxdeployqt
+          chmod a+x linuxdeployqt
+    - name: '📦 Create AppImage'
+      run: |
+          make INSTALL_ROOT=appdir install
+          ./linuxdeployqt appdir/usr/share/applications/*.desktop -appimage -bundle-non-qt-libs -extra-plugins=imageformats/libqsvg.so -qmldir="${{env.QML_DIR_NIX}}"
+          # Rename AppImage to match "%AppName%-%Version%-Linux.AppImage" format
+          mv Serial_Studio-${{env.VERSION}}-x86_64.AppImage ${{env.EXECUTABLE}}-${{env.VERSION}}-Linux.AppImage
+
     - name: Set up JDK
       uses: actions/setup-java@v2
       with:
         java-version: '11'
         distribution: 'adopt'
-    # Build project
-    - name: Build with PKG_MGR
-      run: echo replace this with build command
     # WhiteSource Scan
     - name: WhiteSource Unified Agent Download
     - run: curl -LJO https://unified-agent.s3.amazonaws.com/wss-unified-agent.jar
@@ -42,15 +95,8 @@ jobs:
         WS_PROJECTNAME: ${{github.ref}}
         WS_GENERATEPROJECTDETAILSJSON: true
         WS_SCANCOMMENT: "[GitHub.tidharmeltzer] ${{github.ref}}"
-        # Prioritize
-        # WS_FILESYSTEMSCAN: false
-        # WS_RESOLVEALLDEPENDENCIES: false
-        # WS_XXXXX_RESOLVEDEPENDENCIES: true
-        # WS_ENABLEIMPACTANALYSIS: true
+
       # SCA Scan
       run: |
         java -jar wss-unified-agent.jar
-      # Prioritize Scan
-      run: |
-        APPPATH=$(find ./build/libs -type f -wholename "*.war")
-        java -jar wss-unified-agent.jar -appPath $APPPATH -d ./
+
