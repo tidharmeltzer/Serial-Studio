@@ -66,8 +66,6 @@ jobs:
       run: |
           ${{env.QMAKE}} ${{env.QMAKE_PROJECT}} CONFIG+=release PREFIX=/usr
           make -j${{env.CORES}}
-      with:
-        submodules: recursive
     - name: '⚙️ Install linuxdeployqt'
       run: |
           wget -c -nv "https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage" -O linuxdeployqt
